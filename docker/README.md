@@ -37,3 +37,8 @@ docker tag intuitive-ubuntu-aws-k8s:1.0 saratrajan/intuitive-ubuntu-aws-k8s:1.0
 docker push saratrajan/intuitive-ubuntu-aws-k8s:1.0
 ```
 ![](./docker-tag-push.png)
+
+### 6. Published Docker image
+
+The published Docker image is available now on [DockerHub Registry](https://hub.docker.com/r/saratrajan/intuitive-ubuntu-aws-k8s)
+![](./docker-registry.png)

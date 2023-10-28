@@ -1,0 +1,70 @@
+trigger:
+- main
+- feature/*
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+## Terraform Init and Validate stage
+stages:
+- stage: Validate
+  jobs:
+  - job: TerraformValidate
+    steps:
+    - checkout: self
+    - task: UseTerraform@0
+      inputs:
+        terraformVersion: '1.x'
+    - script: terraform init
+      displayName: 'Terraform Init'
+    - script: terraform validate
+      displayName: 'Terraform Validate'
+
+## Terraform lint to make sure that no linting issues are present
+- stage: Lint
+  jobs:
+  - job: TerraformLint
+    steps:
+    - checkout: self
+    - script: |
+        curl -LO https://github.com/terraform-linters/tflint/releases/download/v0.29.0/tflint_linux_amd64.zip
+        unzip tflint_linux_amd64.zip
+        sudo mv tflint /usr/local/bin/
+      displayName: 'Install TFLint'
+    - script: tflint
+      displayName: 'TFLint'
+
+# Terraform deploy stage where Plan and Apply are done
+- stage: Deploy
+  jobs:
+  - deployment: TerraformApply
+    ## Based on the branch (trunk or non-trunk) the environment name is picked.
+    environment:
+      ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+        name: 'production'
+      ${{ if ne(variables['Build.SourceBranchName'], 'main') }}:
+        name: 'development'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: UseTerraform@0
+            inputs:
+              terraformVersion: '1.x'
+          - script: terraform init
+            displayName: 'Terraform Init'
+          - script: terraform plan -out=tfplan
+            displayName: 'Terraform Plan'
+            env:
+              ARM_CLIENT_ID: $(ServicePrincipalId)
+              ARM_CLIENT_SECRET: $(ServicePrincipalKey)
+              ARM_SUBSCRIPTION_ID: $(SubscriptionId)
+              ARM_TENANT_ID: $(TenantId)
+          - script: terraform apply -auto-approve tfplan
+            displayName: 'Terraform Apply'
+            env:
+              ARM_CLIENT_ID: $(ServicePrincipalId)
+              ARM_CLIENT_SECRET: $(ServicePrincipalKey)
+              ARM_SUBSCRIPTION_ID: $(SubscriptionId)
+              ARM_TENANT_ID: $(TenantId)
